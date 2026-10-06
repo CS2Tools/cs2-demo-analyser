@@ -1,5 +1,7 @@
 # CS2 Demo Analyser
 
+##[Instalador](https://github.com/CS2Tools/cs2-demo-analyser/releases/tag/v1.1.0)
+
 Analisador de demos de Counter-Strike 2 que roda inteiro na sua máquina.
 Você aponta para um arquivo `.dem`, o programa lê, guarda num banco local e
 mostra o que aconteceu — round por round, jogador por jogador, com o número
