@@ -1,0 +1,38 @@
+node_modules/
+dist/
+build/
+release/
+*.tsbuildinfo
+.vite/
+.DS_Store
+Thumbs.db
+
+# Dados locais do usuario — nunca versionar
+data/
+staging/
+*.duckdb
+*.duckdb.wal
+*.parquet
+
+# Demos reais: pesadas e privadas. As fixtures DERIVADAS sao versionadas.
+fixtures/demos/
+!fixtures/derived/
+
+# Logs e temporarios
+*.log
+.tmp/
+
+# Icone do app: gerado por scripts/make-icon.mjs, mas versionado porque o
+# electron-builder precisa dele no build.
+!apps/desktop/build/
+!apps/desktop/build/icon.png
+
+# Binarios do extrator de voz: reconstituidos por scripts/fetch-voice-extractor.mjs
+# (versao e hash fixados). Licencas e README ficam versionados.
+vendor/csgo-voice-extractor/win32-x64/
+
+# Icones de CS2 (propriedade da Valve, uso nao comercial): reconstituidos por
+# scripts/fetch-cs-icons.mjs a partir do manifesto versionado. Ver NOTICE.
+vendor/counter-strike-icons/*
+!vendor/counter-strike-icons/manifest.json
+!vendor/counter-strike-icons/LICENSE

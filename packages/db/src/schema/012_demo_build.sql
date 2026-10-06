@@ -1,0 +1,2 @@
+ALTER TABLE matches ADD COLUMN demo_build VARCHAR;
+ALTER TABLE matches ADD COLUMN demo_format VARCHAR;

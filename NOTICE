@@ -1,0 +1,124 @@
+CS2 Demo Analyser
+Copyright (C) 2026
+
+Este programa e software livre: voce pode redistribui-lo e/ou modifica-lo sob os
+termos da GNU General Public License, versao 3 ou (a seu criterio) qualquer
+versao posterior, conforme publicada pela Free Software Foundation. O texto
+completo da licenca esta em ./LICENSE.
+
+================================================================================
+COMPONENTES DE TERCEIROS
+================================================================================
+
+--------------------------------------------------------------------------------
+Imagens de radar e metadados de mapa — boltobserv
+--------------------------------------------------------------------------------
+Origem : https://github.com/boltgolt/boltobserv
+Licenca: GNU General Public License v3.0 (ver vendor/boltobserv-maps/LICENSE)
+Arquivos: vendor/boltobserv-maps/<mapa>/{meta.json5,radar.png,overlay_*.png}
+
+As imagens de radar sao arte REDESENHADA, criada especificamente para o
+boltobserv em cooperacao com SimpleRadar (https://readtldr.gg/simpleradar) e
+readtldr.gg. Nao sao assets extraidos da Valve.
+
+A formula de conversao de coordenadas do mundo para o radar, implementada em
+packages/radar/src/transform.ts, e derivada de src/renderers/_global.js do
+boltobserv (funcao positionToPerc).
+
+Modificacoes feitas neste projeto:
+  - Nenhuma alteracao nas imagens.
+  - A logica de transformacao foi reimplementada em TypeScript, preservando a
+    semantica original (percentual a partir do canto inferior esquerdo, selecao
+    de nivel por Z com limites estritamente exclusivos, deslocamento de split em
+    pontos percentuais).
+
+--------------------------------------------------------------------------------
+Extracao de voz — csgo-voice-extractor e libopus
+--------------------------------------------------------------------------------
+csgo-voice-extractor v3.1.6   MIT       https://github.com/akiver/csgo-voice-extractor
+  Texto da licenca: vendor/csgo-voice-extractor/LICENSE
+libopus (opus.dll)            BSD-3     https://opus-codec.org
+  Texto da licenca: vendor/csgo-voice-extractor/COPYING.opus
+
+Distribuidos como binarios (csgove.exe, opus.dll), obtidos da release oficial e
+verificados por SHA-256 em scripts/fetch-voice-extractor.mjs. Rodam como
+processo separado durante a importacao, sem acesso a rede.
+
+NENHUM binario da Valve e distribuido. A release do extrator traz tier0.dll e
+vaudio_celt.dll (usados so para demos de CS:GO); eles sao substituidos por
+arquivos VAZIOS com o mesmo nome, porque o extrator apenas verifica que
+existem. Para demos de CS2 o resultado e identico. Ver docs/adr/0003-voz.md.
+
+--------------------------------------------------------------------------------
+Icones de CS2 — Juknum/counter-strike-icons  (FORA da licenca GPL deste app)
+--------------------------------------------------------------------------------
+Origem : https://github.com/Juknum/counter-strike-icons (commit fixado em
+         vendor/counter-strike-icons/manifest.json, com o SHA-256 de cada arquivo)
+Arquivos: vendor/counter-strike-icons/{equipment,deathnotice,maps,radar}/*.svg
+
+Os ICONES sao propriedade da Valve Corporation. Counter-Strike e marca
+registrada da Valve Corporation. Segundo o LICENSE do repositorio, "these
+icons are not licensed for commercial use without explicit permission from
+Valve Corporation". As ferramentas do repositorio sao MIT (Julien Constant).
+
+Os icones NAO estao cobertos pela GPL deste programa e nao sao versionados no
+git: o script scripts/fetch-cs-icons.mjs os obtem do repositorio acima e confere
+cada arquivo pelo hash. Uso pessoal/comunitario nao comercial. Distribuir este
+app comercialmente exige remover ou substituir os icones (o app ja cai para o
+nome da arma quando um icone falta). Ver docs/adr/0001-licensing.md.
+
+--------------------------------------------------------------------------------
+Fonte Geist  (SIL Open Font License 1.1 — licenca propria, FORA da GPL do app)
+--------------------------------------------------------------------------------
+Geist Variable (@fontsource-variable/geist 5.3.0)
+  Copyright 2024 The Geist Project Authors (https://github.com/vercel/geist-font)
+  SIL Open Font License, Version 1.1
+  Texto da licenca: vendor/geist/LICENSE  (instalado em resources/licenses/geist.LICENSE)
+
+A fonte e empacotada dentro do aplicativo (e por isso que a interface nao busca
+fonte na internet). A OFL exige que o aviso de direito autoral e o texto da
+licenca acompanhem o arquivo da fonte; e para isso que a copia acima existe.
+A OFL nao e a GPL: a fonte nao esta coberta pela licenca deste programa.
+
+--------------------------------------------------------------------------------
+Bibliotecas distribuidas dentro do aplicativo
+--------------------------------------------------------------------------------
+Todas compativeis com a GPL-3.
+
+@laihoe/demoparser2         0.42.0   MIT          https://github.com/LaihoE/demoparser
+@duckdb/node-api (DuckDB)   1.5.5    MIT          https://duckdb.org
+Electron                    33.4.11  MIT          https://electronjs.org
+React / React DOM           19.3.0   MIT          https://react.dev
+Fastify                     5.12.5   MIT          https://fastify.dev
+i18next                     24.2.3   MIT          https://www.i18next.com
+react-i18next               15.7.4   MIT          https://react.i18next.com
+@base-ui/react              1.8.0    MIT          https://base-ui.com
+lucide-react                0.469.0  ISC          https://lucide.dev
+class-variance-authority    0.7.1    Apache-2.0   https://cva.style
+cn                          0.3.0    MIT          https://github.com/sandiiarov/cn
+tw-animate-css              1.4.0    MIT          https://github.com/Wombosvideo/tw-animate-css
+fflate                      0.8.3    MIT          https://github.com/101arrowz/fflate
+zod                         3.25.76  MIT          https://zod.dev
+
+shadcn                      4.21.0   MIT          https://ui.shadcn.com
+
+Os componentes em apps/web/src/components/ui/ foram copiados do shadcn/ui e
+depois modificados neste projeto — entre outras coisas, migrados de Radix para
+Base UI; o codigo esta versionado aqui. O pacote `shadcn` continua sendo
+dependencia porque apps/web/src/index.css importa o tema
+`shadcn/tailwind.css`: ele entra no CSS construido, e nao e so ferramenta.
+
+--------------------------------------------------------------------------------
+Ferramentas de build (NAO distribuidas no instalador)
+--------------------------------------------------------------------------------
+TypeScript 5.9.3 Apache-2.0 · Vite 6.4.3 MIT · Tailwind CSS 4.3.3 MIT ·
+@tailwindcss/vite MIT · @vitejs/plugin-react MIT · esbuild 0.28.2 MIT ·
+electron-builder 25.1.8 MIT · vitest 3.2.7 MIT · tsx MIT · concurrently MIT
+
+--------------------------------------------------------------------------------
+O que este aviso NAO lista
+--------------------------------------------------------------------------------
+Nenhum arquivo, binario ou asset da Valve Corporation e redistribuido por este
+projeto, com a excecao declarada acima dos icones (que vem de um repositorio de
+terceiros, nao da instalacao do jogo, e trazem o aviso de propriedade da Valve).
+O programa nao le, nao escreve e nao executa nada dentro da pasta do CS2.
