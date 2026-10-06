@@ -1,0 +1,19 @@
+{
+  "name": "@cs2/host",
+  "version": "1.1.0",
+  "private": true,
+  "type": "module",
+  "license": "GPL-3.0-or-later",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts"
+  },
+  "dependencies": {
+    "@cs2/api": "*",
+    "@cs2/contract": "*",
+    "@cs2/db": "*",
+    "@cs2/ingest": "*",
+    "@laihoe/demoparser2": "^0.42.0",
+    "fastify": "^5.2.0"
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "name": "cs2-demo-analyser",
+  "version": "1.1.0",
+  "private": true,
+  "type": "module",
+  "license": "GPL-3.0-or-later",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n host,web -c blue,magenta \"npm:dev:host\" \"npm:dev:web\"",
+    "dev:host": "npm -w @cs2/host run dev",
+    "dev:web": "npm -w @cs2/web run dev",
+    "build:web": "npm -w @cs2/web run build",
+    "typecheck": "tsc -b --pretty && tsc -p apps/web --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "spike:parse": "tsx scripts/spike-parse.ts",
+    "build:desktop": "npm run fetch:voice && npm run fetch:icons && npm -w @cs2/web run build && npm -w @cs2/desktop run build",
+    "pack:desktop": "npm run build:desktop && npm -w @cs2/desktop exec -- electron-builder --dir",
+    "gate:electron": "node scripts/gate-electron.mjs",
+    "calibrate:aim": "tsx scripts/calibrate-aim.ts",
+    "dist:desktop": "npm run build:desktop && npm -w @cs2/desktop exec -- electron-builder --win nsis",
+    "make:icon": "node scripts/make-icon.mjs",
+    "fetch:voice": "node scripts/fetch-voice-extractor.mjs",
+    "fetch:icons": "node scripts/fetch-cs-icons.mjs",
+    "check:demos": "tsx scripts/check-demos.mjs",
+    "check:voice": "node scripts/check-voice.mjs"
+  },
+  "devDependencies": {
+    "@laihoe/demoparser2": "^0.42.0",
+    "@types/node": "^22.10.2",
+    "concurrently": "^9.1.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vite": "^6.4.3",
+    "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@duckdb/node-api": "^1.5.5-r.5"
+  }
+}

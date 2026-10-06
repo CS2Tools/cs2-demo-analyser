@@ -1,0 +1,101 @@
+{
+  "name": "@cs2/desktop",
+  "version": "1.1.0",
+  "private": true,
+  "description": "Analisador de demos de CS2, 100% local",
+  "author": "CS2 Demo Analyser",
+  "license": "GPL-3.0-or-later",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "node build.mjs",
+    "pack": "npm run build && electron-builder --dir",
+    "dist": "npm run build && electron-builder --win nsis"
+  },
+  "devDependencies": {
+    "@cs2/api": "*",
+    "@cs2/contract": "*",
+    "@cs2/db": "*",
+    "@cs2/ingest": "*",
+    "@duckdb/node-api": "^1.5.5-r.5",
+    "@laihoe/demoparser2": "^0.42.0",
+    "electron": "^33.3.1",
+    "electron-builder": "^25.1.8",
+    "esbuild": "^0.24.2"
+  },
+  "build": {
+    "appId": "br.com.cs2demoanalyser",
+    "electronVersion": "33.4.11",
+    "productName": "CS2 Demo Analyser",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**",
+      "!dist/**/*.map",
+      "!dist/node_modules/**"
+    ],
+    "extraResources": [
+      {
+        "from": "dist/node_modules",
+        "to": "node_modules"
+      },
+      {
+        "from": "../../vendor/boltobserv-maps",
+        "to": "maps"
+      },
+      {
+        "from": "../../LICENSE",
+        "to": "LICENSE"
+      },
+      {
+        "from": "../../NOTICE",
+        "to": "NOTICE"
+      },
+      {
+        "from": "../../vendor/csgo-voice-extractor/win32-x64",
+        "to": "voice-extractor"
+      },
+      {
+        "from": "../../vendor/csgo-voice-extractor/LICENSE",
+        "to": "licenses/csgo-voice-extractor.LICENSE"
+      },
+      {
+        "from": "../../vendor/csgo-voice-extractor/COPYING.opus",
+        "to": "licenses/opus.COPYING"
+      },
+      {
+        "from": "../../vendor/geist/LICENSE",
+        "to": "licenses/geist.LICENSE"
+      },
+      {
+        "from": "../../vendor/counter-strike-icons",
+        "to": "icons",
+        "filter": [
+          "**/*.svg",
+          "LICENSE"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "build/icon.png",
+      "artifactName": "${productName}-Setup-${version}.${ext}",
+      "signAndEditExecutable": false
+    },
+    "npmRebuild": false,
+    "nodeGypRebuild": false,
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "CS2 Demo Analyser",
+      "deleteAppDataOnUninstall": false,
+      "license": "../../LICENSE",
+      "language": "1046"
+    }
+  }
+}

@@ -1,0 +1,1 @@
+ALTER TABLE damages ALTER hitgroup TYPE VARCHAR;
