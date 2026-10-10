@@ -17,6 +17,7 @@ import {
   indexInventory,
   indexSteps,
   inventoryAt,
+  kdaAt,
   roundClock,
   valueAt,
 } from './hud-state';
@@ -46,28 +47,43 @@ function Scoreboard({ replay }: { replay: RoundReplay }) {
   const sideOf = (team: 'A' | 'B') =>
     replay.slots.find((slot) => slot.team === team)?.side ?? null;
 
-  const cell = (team: 'A' | 'B', name: string | null, value: number) => {
+  const cell = (team: 'A' | 'B', name: string | null, value: number, leading: boolean) => {
     const side = sideOf(team);
     return (
-      <span
-        className={cn(
-          'flex min-w-0 items-baseline gap-1.5',
-          side === 'CT' ? 'text-sky-300' : side === 'T' ? 'text-amber-300' : 'text-muted-foreground',
-          team === 'B' && 'flex-row-reverse',
-        )}
-        title={name ?? undefined}
-      >
-        <span className="max-w-20 truncate text-[10px]">{cleanName(name ?? team)}</span>
-        <span className="font-mono text-sm font-semibold tabular-nums">{value}</span>
-      </span>
+      <div className="flex min-w-0 flex-1 flex-col items-center gap-1">
+        <span
+          className={cn(
+            'h-0.5 w-full rounded-full',
+            side === 'CT' ? 'bg-sky-400' : side === 'T' ? 'bg-amber-400' : 'bg-muted-foreground/40',
+          )}
+        />
+        <span
+          className={cn(
+            'max-w-24 truncate text-[10px] leading-none',
+            side === 'CT' ? 'text-sky-300' : side === 'T' ? 'text-amber-300' : 'text-muted-foreground',
+          )}
+          title={name ?? undefined}
+        >
+          {cleanName(name ?? team)}
+        </span>
+        <span
+          className={cn(
+            'font-mono text-xl leading-none tabular-nums',
+
+            leading ? 'font-semibold text-foreground' : 'font-normal text-muted-foreground',
+          )}
+        >
+          {value}
+        </span>
+      </div>
     );
   };
 
   return (
-    <div className="flex w-full items-baseline justify-between gap-2">
-      {cell('A', replay.score.teamAName, replay.score.a)}
-      <span className="text-[10px] text-muted-foreground">:</span>
-      {cell('B', replay.score.teamBName, replay.score.b)}
+    <div className="flex w-full items-stretch gap-3">
+      {cell('A', replay.score.teamAName, replay.score.a, replay.score.a > replay.score.b)}
+      <span className="w-px self-stretch bg-white/10" />
+      {cell('B', replay.score.teamBName, replay.score.b, replay.score.b > replay.score.a)}
     </div>
   );
 }
@@ -95,48 +111,73 @@ export function RoundTimer({ replay, frame, index }: { replay: RoundReplay; fram
   const defuser = clock.defuse?.slot != null ? index.nameOf.get(clock.defuse.slot) : null;
 
   return (
-    <div className="pointer-events-none flex min-w-36 flex-col items-center gap-1 rounded-md bg-black/70 px-3 py-1.5 backdrop-blur-sm">
+    <div
+      className={cn(
+
+        'pointer-events-none flex min-w-44 flex-col items-center gap-2 overflow-hidden rounded-lg',
+        'border border-white/10 bg-background/85 px-3 py-2 shadow-lg shadow-black/40 backdrop-blur-md',
+
+        planted && 'border-red-500/40',
+      )}
+    >
       <Scoreboard replay={replay} />
-      <div className="flex items-center gap-2">
-        {planted ? <CsIcon rel={EQUIPMENT_ICONS.plantedC4} className="h-4" /> : null}
-        <span
-          className={cn(
-            'font-mono text-lg font-semibold tabular-nums',
-            planted && 'text-red-400',
-            clock.phase === 'freeze' && 'text-muted-foreground',
-          )}
-        >
-          {clock.phase === 'defused' || clock.phase === 'exploded'
-            ? '0:00'
-            : clock.phase === 'over'
-              ? '—'
-              : formatClock(clock.remaining)}
-        </span>
+
+      <div className="h-px w-full bg-white/10" />
+
+      <div className="flex w-full flex-col items-center gap-1.5">
+        <div className="flex items-center gap-2">
+          {planted ? <CsIcon rel={EQUIPMENT_ICONS.plantedC4} className="h-5" /> : null}
+          <span
+            className={cn(
+              'font-mono text-2xl font-semibold leading-none tabular-nums',
+              planted && 'text-red-400',
+              clock.phase === 'freeze' && 'text-muted-foreground',
+            )}
+          >
+            {clock.phase === 'defused' || clock.phase === 'exploded'
+              ? '0:00'
+              : clock.phase === 'over'
+                ? '—'
+                : formatClock(clock.remaining)}
+          </span>
+        </div>
+        {pct !== null ? (
+          <div className="h-1 w-full overflow-hidden rounded-full bg-white/10">
+            <div
+              className={cn(
+                'h-full rounded-full transition-[width] duration-150 ease-linear',
+                planted ? 'bg-red-500' : clock.phase === 'freeze' ? 'bg-white/30' : 'bg-white/70',
+              )}
+              style={{ width: `${Math.max(0, Math.min(1, pct)) * 100}%` }}
+            />
+          </div>
+        ) : null}
+        {label ? (
+          <span
+            className={cn(
+              'text-[10px] uppercase leading-none tracking-wider',
+              planted ? 'text-red-400/90' : 'text-muted-foreground',
+            )}
+          >
+            {label}
+          </span>
+        ) : null}
       </div>
-      {label ? <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</span> : null}
-      {pct !== null ? (
-        <div className="h-1 w-full overflow-hidden rounded bg-white/10">
-          <div
-            className={cn('h-full', planted ? 'bg-red-500' : clock.phase === 'freeze' ? 'bg-white/30' : 'bg-white/60')}
-            style={{ width: `${Math.max(0, Math.min(1, pct)) * 100}%` }}
-          />
-        </div>
-      ) : null}
+
       {clock.defuse ? (
-        <div className="flex w-full flex-col gap-0.5">
-          <div className="flex items-center justify-between gap-2 text-[10px] text-sky-300">
-            <span className="flex items-center gap-1">
-              {clock.defuse.hasKit ? <CsIcon rel={EQUIPMENT_ICONS.defuser} className="h-3" /> : null}
-              {t(clock.defuse.hasKit ? 'hud.defusingKit' : 'hud.defusingNoKit', { name: defuser ?? '?' })}
-            </span>
-          </div>
-          <div className="h-1 w-full overflow-hidden rounded bg-white/10">
-            <div className="h-full bg-sky-400" style={{ width: `${clock.defuse.progress * 100}%` }} />
+        <div className="flex w-full flex-col gap-1">
+          <span className="flex items-center gap-1 text-[10px] leading-none text-sky-300">
+            {clock.defuse.hasKit ? <CsIcon rel={EQUIPMENT_ICONS.defuser} className="h-3" /> : null}
+            {t(clock.defuse.hasKit ? 'hud.defusingKit' : 'hud.defusingNoKit', { name: defuser ?? '?' })}
+          </span>
+          <div className="h-1 w-full overflow-hidden rounded-full bg-white/10">
+            <div className="h-full rounded-full bg-sky-400" style={{ width: `${clock.defuse.progress * 100}%` }} />
           </div>
         </div>
       ) : null}
+
       {planted && replay.hud.c4TimerSource === 'reference' ? (
-        <span className="text-[9px] text-muted-foreground" title={t('hud.c4ReferenceHint')}>
+        <span className="text-[9px] leading-none text-muted-foreground" title={t('hud.c4ReferenceHint')}>
           {t('hud.c4Reference')}
         </span>
       ) : null}
@@ -163,10 +204,17 @@ export function Killfeed({
   const kills = replay.events.filter((e) => e.kind === 'kill' && e.tick <= tick && tick - e.tick <= window);
   if (kills.length === 0) return null;
 
-  const who = (slot: number | null) => {
-    if (slot === null) return <span className="text-muted-foreground">{t('hud.world')}</span>;
-    const side = index.sideOf.get(slot);
-    return <span className={cn('max-w-28 truncate', side === 'CT' ? CT : T)}>{index.nameOf.get(slot)}</span>;
+  const who = (slot: number | null, maxW = 'max-w-28') => {
+    const name = slot === null ? null : index.nameOf.get(slot);
+    if (name === null || name === undefined) {
+      return <span className="text-muted-foreground">{t('hud.world')}</span>;
+    }
+    const side = index.sideOf.get(slot!);
+    return (
+      <span className={cn('truncate', maxW, side === 'CT' ? CT : side === 'T' ? T : 'text-muted-foreground')}>
+        {name}
+      </span>
+    );
   };
 
   return (
@@ -185,9 +233,11 @@ export function Killfeed({
             {k.attackerBlind ? <CsIcon rel={KILLFEED_ICONS.attackerBlind} title={t('hud.blind')} /> : null}
             {who(k.actorSlot)}
             {k.assisterSlot !== null ? (
-              <span className="flex items-center gap-0.5 text-muted-foreground">
-                +{k.flashAssist ? <CsIcon rel={EQUIPMENT_ICONS.flashAssist} title={t('hud.flashAssist')} /> : null}
-                <span className="max-w-20 truncate">{index.nameOf.get(k.assisterSlot)}</span>
+
+              <span className="flex items-center gap-0.5">
+                <span className="text-muted-foreground">+</span>
+                {k.flashAssist ? <CsIcon rel={EQUIPMENT_ICONS.flashAssist} title={t('hud.flashAssist')} /> : null}
+                {who(k.assisterSlot, 'max-w-20')}
               </span>
             ) : null}
             <CsIcon rel={weaponIcon(k.weapon)} fallback={k.weapon ?? ''} title={k.weapon ?? ''} className="h-3.5" />
@@ -242,6 +292,11 @@ export function PlayerPanel({
 }) {
   const { t, i18n } = useTranslation();
   const i = Math.max(0, Math.min(replay.frames - 1, Math.floor(frame)));
+
+  const kda = useMemo(
+    () => kdaAt(replay.events, replay.slots, replay.startTick + i * replay.stride),
+    [replay, i],
+  );
   const talkers = new Set(replay.voice.map((v) => v.steamId));
   const hasHud = replay.hud.dataVersion >= 2;
 
@@ -271,7 +326,10 @@ export function PlayerPanel({
     const items = (inventoryAt(index.inventory, s.slot, i) ?? [])
       .filter((n) => inventoryCategory(n) !== 'knife')
       .sort((a, b) => CATEGORY_ORDER[inventoryCategory(a)] - CATEGORY_ORDER[inventoryCategory(b)]);
-    const side = s.side === 'CT' ? CT : T;
+
+    const side = s.side === 'CT' ? CT : s.side === 'T' ? T : 'text-muted-foreground';
+    const k = kda.get(s.slot);
+    const kdaText = k ? `${k.kills} / ${k.deaths} / ${k.assists}` : null;
 
     const poiColour = poiColours?.get(s.slot) ?? null;
 
@@ -291,14 +349,19 @@ export function PlayerPanel({
             <span
               className={cn(
                 'flex size-4 shrink-0 items-center justify-center rounded-full text-[9px] font-bold text-background',
-                s.side === 'CT' ? 'bg-sky-400' : 'bg-amber-400',
+                s.side === 'CT' ? 'bg-sky-400' : s.side === 'T' ? 'bg-amber-400' : 'bg-muted-foreground',
               )}
               title={t('misc2.radarNumber')}
             >
               {numbers.get(s.slot)}
             </span>
           ) : (
-            <span className={cn('size-2 shrink-0 rounded-full', s.side === 'CT' ? 'bg-sky-400' : 'bg-amber-400')} />
+            <span
+              className={cn(
+                'size-2 shrink-0 rounded-full',
+                s.side === 'CT' ? 'bg-sky-400' : s.side === 'T' ? 'bg-amber-400' : 'bg-muted-foreground',
+              )}
+            />
           )}
           <span
             className={cn('min-w-0 flex-1 truncate font-medium', alive && !poiColour && side)}
@@ -337,6 +400,14 @@ export function PlayerPanel({
             </button>
           ) : null}
           {flashed ? <span className="text-[10px] text-white/70">{t('hud.blindShort')}</span> : null}
+          {kdaText ? (
+            <span
+              className="shrink-0 font-mono text-[10px] tabular-nums text-muted-foreground"
+              title={t('hud.kdaTitle')}
+            >
+              {kdaText}
+            </span>
+          ) : null}
           {hasHud && cash !== null ? (
             <span className="font-mono tabular-nums text-emerald-400">${money.format(cash)}</span>
           ) : null}

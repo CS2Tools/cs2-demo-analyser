@@ -18,7 +18,7 @@ export function setSchemaDir(dir: string): void {
   schemaDir = dir;
 }
 
-export const SCHEMA_VERSION = 20;
+export const SCHEMA_VERSION = 21;
 
 interface Migration {
   version: number;
@@ -40,7 +40,7 @@ function load(version: number, name: string): Migration {
 }
 
 function migrations(): Migration[] {
-  return [load(1, 'init'), load(2, 'team_score'), load(3, 'aim_duels_guns_only'), load(4, 'voice_rounds'), load(5, 'stored_demo'), load(6, 'hud_data'), load(7, 'utility_deep'), load(8, 'flash_distance'), load(9, 'event_ids'), load(10, 'utility_throws'), load(11, 'saved_queries'), load(12, 'demo_build'), load(13, 'metrics_version'), load(14, 'hitgroup'), load(15, 'round_stats_version'), load(16, 'round_states'), load(17, 'team_color'), load(18, 'played_at_source'), load(19, 'drop_players_of_interest'), load(20, 'roster_complete')];
+  return [load(1, 'init'), load(2, 'team_score'), load(3, 'aim_duels_guns_only'), load(4, 'voice_rounds'), load(5, 'stored_demo'), load(6, 'hud_data'), load(7, 'utility_deep'), load(8, 'flash_distance'), load(9, 'event_ids'), load(10, 'utility_throws'), load(11, 'saved_queries'), load(12, 'demo_build'), load(13, 'metrics_version'), load(14, 'hitgroup'), load(15, 'round_stats_version'), load(16, 'round_states'), load(17, 'team_color'), load(18, 'played_at_source'), load(19, 'drop_players_of_interest'), load(20, 'roster_complete'), load(21, 'drop_absent_round_rows')];
 }
 
 const checksum = (sql: string) => createHash('sha256').update(sql).digest('hex').slice(0, 16);

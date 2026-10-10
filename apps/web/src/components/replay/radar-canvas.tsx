@@ -14,6 +14,8 @@ const CT_COLOR = '#38bdf8';
 const T_COLOR = '#fbbf24';
 const DEAD_COLOR = '#6b7280';
 
+const UNKNOWN_SIDE_COLOR = '#9ca3af';
+
 const TELEPORT_PERCENT = 12;
 
 const DEATH_MARKER_FRAMES = 8 * 4;
@@ -295,7 +297,13 @@ export function RadarCanvas({
       const cx = px(pose.x);
       const cy = py(pose.y);
       const side = sideOf.get(slot);
-      const color = pose.alive ? (side === 'CT' ? CT_COLOR : T_COLOR) : DEAD_COLOR;
+      const color = !pose.alive
+        ? DEAD_COLOR
+        : side === 'CT'
+          ? CT_COLOR
+          : side === 'T'
+            ? T_COLOR
+            : UNKNOWN_SIDE_COLOR;
       const highlighted = highlightSlot === slot;
 
       const poiColour = poiColours?.get(slot) ?? null;
@@ -404,7 +412,7 @@ export function RadarCanvas({
   drawLiveRef.current = drawLive;
   useEffect(() => drawLive(), [drawLive]);
 
-  const onWheel = (ev: React.WheelEvent<HTMLDivElement>) => {
+  const onWheel = useCallback((ev: WheelEvent) => {
     const canvas = liveRef.current;
     if (!canvas) return;
     ev.preventDefault();
@@ -425,7 +433,14 @@ export function RadarCanvas({
         canvas.height,
       );
     });
-  };
+  }, []);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [onWheel]);
 
   const onMouseDown = (ev: React.MouseEvent<HTMLDivElement>) => {
     if (camera.zoom <= MIN_ZOOM) return;
@@ -480,7 +495,6 @@ export function RadarCanvas({
         ref={containerRef}
         className="relative aspect-square w-full overflow-hidden rounded-lg bg-black/60"
         style={{ cursor: camera.zoom > MIN_ZOOM ? 'grab' : 'default' }}
-        onWheel={onWheel}
         onMouseDown={onMouseDown}
         onMouseMove={onMouseMove}
         onMouseUp={endDrag}

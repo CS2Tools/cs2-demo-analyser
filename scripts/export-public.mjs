@@ -159,13 +159,16 @@ if (testes.status !== 0) {
   process.exit(1);
 }
 
+const versao = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version;
+
 console.log(`
   Copia publica pronta e conferida: typecheck e testes passam.
 
-  Para publicar, no destino:
+  Para publicar, no destino (a primeira vez tem o \`git init -b main\` e o
+  \`git remote add\`; depois disso, so os tres do meio):
     git init -b main
-    git add -A
-    git commit -m "CS2 Demo Analyser 1.1.0"
     git remote add origin <url do repositorio na OUTRA conta>
+    git add -A
+    git commit -m "CS2 Demo Analyser ${versao}"
     git push -u origin main
 `);

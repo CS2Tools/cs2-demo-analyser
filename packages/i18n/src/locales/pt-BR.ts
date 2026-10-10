@@ -984,6 +984,7 @@ export const ptBR = {
     wallbang: 'através da parede (wallbang)',
     headshot: 'headshot',
     blindShort: 'cego',
+    kdaTitle: 'kills / mortes / assistências na partida, até este instante',
     armor: 'colete ({{n}})',
     armorHelmet: 'colete e capacete ({{n}})',
     kit: 'kit de desarme',

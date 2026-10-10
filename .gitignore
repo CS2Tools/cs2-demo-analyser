@@ -36,3 +36,6 @@ vendor/csgo-voice-extractor/win32-x64/
 vendor/counter-strike-icons/*
 !vendor/counter-strike-icons/manifest.json
 !vendor/counter-strike-icons/LICENSE
+
+# Saida do /brag: video e composicao, nao fazem parte do produto
+brag-output*/

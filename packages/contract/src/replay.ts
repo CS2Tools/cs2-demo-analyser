@@ -13,6 +13,10 @@ export const replaySlotSchema = z.object({
   isPoi: z.boolean(),
 
   teamColor: z.string().nullable().default(null),
+
+  killsBefore: z.number().int().default(0),
+  deathsBefore: z.number().int().default(0),
+  assistsBefore: z.number().int().default(0),
 });
 export type ReplaySlot = z.infer<typeof replaySlotSchema>;
 

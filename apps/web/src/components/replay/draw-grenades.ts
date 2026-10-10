@@ -56,11 +56,24 @@ export function drawGrenadeTrails(
   }
 }
 
-function isActive(det: Detonation, nowTick: number, stride: number): boolean {
-  if (nowTick < det.tick) return false;
-  if (det.expireTick !== null) return nowTick <= det.expireTick;
+export function detonationEnd(
+  det: Detonation,
+  roundEndTick: number,
+  stride: number,
+): number {
+  if (det.expireTick !== null) return det.expireTick;
+  if (det.kind === 'smoke' || det.kind === 'molotov') return roundEndTick;
+  return det.tick + stride * 2;
+}
 
-  return nowTick <= det.tick + stride * 2;
+export function isActive(
+  det: Detonation,
+  nowTick: number,
+  stride: number,
+  roundEndTick: number,
+): boolean {
+  if (nowTick < det.tick) return false;
+  return nowTick <= detonationEnd(det, roundEndTick, stride);
 }
 
 export function drawDetonations(
@@ -71,7 +84,8 @@ export function drawDetonations(
   const { ctx, px, py, scale, pctToPx } = d;
 
   for (const det of replay.detonations) {
-    if (!isActive(det, nowTick, replay.stride)) continue;
+    const end = detonationEnd(det, replay.endTick, replay.stride);
+    if (nowTick < det.tick || nowTick > end) continue;
 
     const cx = px(det.x);
     const cy = py(det.y);
@@ -79,11 +93,9 @@ export function drawDetonations(
     const color = GRENADE_COLORS[det.kind];
 
     let alpha = 1;
-    if (det.expireTick !== null) {
-      const life = det.expireTick - det.tick;
-      const remaining = det.expireTick - nowTick;
-      if (life > 0 && remaining < life * 0.15) alpha = Math.max(0, remaining / (life * 0.15));
-    }
+    const life = end - det.tick;
+    const remaining = end - nowTick;
+    if (life > 0 && remaining < life * 0.15) alpha = Math.max(0, remaining / (life * 0.15));
 
     if (det.kind === 'smoke') {
       ctx.globalAlpha = 0.4 * alpha;
@@ -128,7 +140,8 @@ export function drawDetonations(
       ctx.arc(cx, cy, r, 0, Math.PI * 2);
       ctx.stroke();
       ctx.setLineDash([]);
-    } else if (det.kind === 'flashbang') {
+    } else {
+
       ctx.globalAlpha = 0.9 * alpha;
       ctx.fillStyle = color;
       ctx.beginPath();

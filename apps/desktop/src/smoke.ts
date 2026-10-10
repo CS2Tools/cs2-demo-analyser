@@ -659,6 +659,74 @@ export async function runSmokeTest(
     );
   }
 
+  try {
+    if (!matchId) throw new Error('nenhuma partida');
+    const detail = await invoke('match.get', { matchId }, ctx);
+    const live = detail.rounds.filter((x) => x.phase === 'live');
+    if (live.length === 0) throw new Error('nenhum round live');
+
+    let semLado = 0;
+    let menorElenco = Number.POSITIVE_INFINITY;
+    let kdaNegativo = 0;
+    for (const round of live) {
+      const replay = await invoke('replay.round', { matchId, roundNum: round.roundNum }, ctx);
+      semLado += replay.slots.filter((s) => s.side === null).length;
+      menorElenco = Math.min(menorElenco, replay.slots.length);
+      kdaNegativo += replay.slots.filter(
+        (s) => s.killsBefore < 0 || s.deathsBefore < 0 || s.assistsBefore < 0,
+      ).length;
+    }
+
+    add(
+      'nenhum slot do replay fica sem lado',
+      semLado === 0 && kdaNegativo === 0 && menorElenco >= 2,
+      `${live.length} round(s) live, menor elenco ${menorElenco}` +
+        (semLado > 0 ? `; ${semLado} SLOT(S) SEM LADO` : '') +
+        (kdaNegativo > 0 ? `; ${kdaNegativo} K/D/A NEGATIVO` : ''),
+    );
+  } catch (err) {
+    add('nenhum slot do replay fica sem lado', false, String(err));
+  }
+
+  const EXPLICACAO_SEGUNDOS = 25;
+  try {
+    if (!matchId) throw new Error('nenhuma partida');
+    const detail = await invoke('match.get', { matchId }, ctx);
+    const live = detail.rounds.filter((x) => x.phase === 'live');
+    if (live.length === 0) throw new Error('nenhum round live');
+
+    let duradouras = 0;
+    let semExpire = 0;
+    let inexplicadas = 0;
+    let piorSegundos = 0;
+    for (const round of live) {
+      const replay = await invoke('replay.round', { matchId, roundNum: round.roundNum }, ctx);
+      const limite = EXPLICACAO_SEGUNDOS * replay.tickRate;
+      for (const det of replay.detonations) {
+        if (det.kind !== 'smoke' && det.kind !== 'molotov') continue;
+        duradouras += 1;
+        if (det.expireTick !== null) continue;
+        semExpire += 1;
+        const sobrou = replay.endTick - det.tick;
+        if (sobrou > limite) {
+          inexplicadas += 1;
+          piorSegundos = Math.max(piorSegundos, sobrou / replay.tickRate);
+        }
+      }
+    }
+
+    add(
+      'fumaca sem evento de expiracao so acontece no fim do round',
+      duradouras > 0 && inexplicadas === 0,
+      `${duradouras} area(s) duradoura(s), ${semExpire} sem evento de expiracao` +
+        (inexplicadas > 0
+          ? `; ${inexplicadas} INEXPLICADA(S), a pior com ${piorSegundos.toFixed(0)}s de round pela frente`
+          : ''),
+    );
+  } catch (err) {
+    add('fumaca sem evento de expiracao so acontece no fim do round', false, String(err));
+  }
+
   return report(checks);
 }
 

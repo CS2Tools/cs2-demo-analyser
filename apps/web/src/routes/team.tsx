@@ -350,6 +350,67 @@ function TeamColumn({
                   vantagem: 'primeiro desequilibrio numerico do round',
                 },
               },
+
+              display: () => ({
+                columns: [
+                  t('teamScreen.reading'),
+                  t('teamScreen.thisTeam'),
+                  t('teamScreen.opponent'),
+                ],
+                rows: [
+                  ...team.bySide.map((s) => {
+                    const dele = opponent.bySide.find((x) => x.side !== s.side);
+                    return [
+                      `${t('teamScreen.roundsOf')} ${s.side}`,
+                      pct(s.won, s.rounds),
+                      dele ? pct(dele.won, dele.rounds) : null,
+                    ];
+                  }),
+                  [
+                    t('teamScreen.opened'),
+                    pct(team.openings.openedWon, team.openings.opened),
+                    pct(opponent.openings.openedWon, opponent.openings.opened),
+                  ],
+                  [
+                    t('teamScreen.turned'),
+                    pct(virou(team), atrasado(team)),
+                    pct(virou(opponent), atrasado(opponent)),
+                  ],
+                  [
+                    t('teamScreen.utilPerRound'),
+                    team.utility.roundsPlayed > 0
+                      ? (team.utility.thrown / team.utility.roundsPlayed).toFixed(1)
+                      : null,
+                    opponent.utility.roundsPlayed > 0
+                      ? (opponent.utility.thrown / opponent.utility.roundsPlayed).toFixed(1)
+                      : null,
+                  ],
+                  [t('teamScreen.utilDamage'), team.utility.damage, opponent.utility.damage],
+                  [
+                    t('teamScreen.bomb'),
+                    t('teamScreen.plantsShort', {
+                      plants: team.bomb.plants,
+                      defuses: team.bomb.defuses,
+                    }),
+                    t('teamScreen.plantsShort', {
+                      plants: opponent.bomb.plants,
+                      defuses: opponent.bomb.defuses,
+                    }),
+                  ],
+
+                  ...team.buys
+                    .slice()
+                    .sort((a, b) => b.rounds - a.rounds)
+                    .map((b) => {
+                      const dele = opponent.buys.find((x) => x.buyType === b.buyType);
+                      return [
+                        `${t('teamScreen.buy')} ${BUY_LABELS[b.buyType] ?? b.buyType}`,
+                        `${b.won}/${b.rounds}`,
+                        dele ? `${dele.won}/${dele.rounds}` : null,
+                      ];
+                    }),
+                ],
+              }),
               table: () => ({
                 columns: ['leitura', 'valor', 'de'],
                 rows: [

@@ -963,6 +963,7 @@ export const en: Catalog = {
     wallbang: 'wallbang',
     headshot: 'headshot',
     blindShort: 'blind',
+    kdaTitle: 'kills / deaths / assists in the match, up to this moment',
     armor: 'kevlar ({{n}})',
     armorHelmet: 'kevlar and helmet ({{n}})',
     kit: 'defuse kit',

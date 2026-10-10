@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import type { ReplayHud } from '@cs2/contract';
+import type { ReplayEvent, ReplayHud, ReplaySlot } from '@cs2/contract';
 import {
   bombAt,
   formatClock,
   indexInventory,
   indexSteps,
   inventoryAt,
+  kdaAt,
   roundClock,
   valueAt,
 } from '../src/components/replay/hud-state';
@@ -137,5 +138,79 @@ describe('formatClock', () => {
     expect(formatClock(115)).toBe('1:55');
     expect(formatClock(6.2)).toBe('0:07');
     expect(formatClock(null)).toBe('—');
+  });
+});
+
+describe('kdaAt', () => {
+  const slot = (n: number, antes: [number, number, number] = [0, 0, 0]): ReplaySlot =>
+    ({
+      slot: n,
+      steamId: `p${n}`,
+      name: `p${n}`,
+      team: n < 5 ? 'A' : 'B',
+      side: n < 5 ? 'CT' : 'T',
+      isUser: false,
+      isPoi: false,
+      teamColor: null,
+      killsBefore: antes[0],
+      deathsBefore: antes[1],
+      assistsBefore: antes[2],
+    }) as ReplaySlot;
+
+  const kill = (tick: number, ator: number | null, alvo: number, assist: number | null = null) =>
+    ({
+      tick,
+      kind: 'kill',
+      actorSlot: ator,
+      targetSlot: alvo,
+      assisterSlot: assist,
+      weapon: 'ak47',
+      headshot: false,
+      x: 0,
+      y: 0,
+      split: 0,
+      penetrated: false,
+      thruSmoke: false,
+      attackerBlind: false,
+      noscope: false,
+      flashAssist: false,
+    }) as ReplayEvent;
+
+  const slots = [slot(0), slot(5), slot(6)];
+
+  it('a kill soma no assassino, a morte na vitima e a assistencia no assistente', () => {
+    const k = kdaAt([kill(100, 0, 5, 6)], slots, 200);
+    expect(k.get(0)).toEqual({ kills: 1, deaths: 0, assists: 0 });
+    expect(k.get(5)).toEqual({ kills: 0, deaths: 1, assists: 0 });
+    expect(k.get(6)).toEqual({ kills: 0, deaths: 0, assists: 1 });
+  });
+
+  it('evento DEPOIS do tick atual nao conta: a contagem sobe junto com o killfeed', () => {
+    const k = kdaAt([kill(100, 0, 5), kill(300, 0, 6)], slots, 200);
+    expect(k.get(0)!.kills).toBe(1);
+    expect(k.get(6)!.deaths).toBe(0);
+  });
+
+  it('kill do mundo (queda, bomba) nao soma kill a ninguem, mas soma a morte', () => {
+    const k = kdaAt([kill(100, null, 5)], slots, 200);
+    expect(k.get(5)!.deaths).toBe(1);
+    expect([...k.values()].reduce((n, v) => n + v.kills, 0)).toBe(0);
+  });
+
+  it('soma com o acumulado dos rounds anteriores', () => {
+    const k = kdaAt([kill(100, 0, 5)], [slot(0, [7, 4, 2]), slot(5, [1, 9, 0])], 200);
+    expect(k.get(0)).toEqual({ kills: 8, deaths: 4, assists: 2 });
+    expect(k.get(5)).toEqual({ kills: 1, deaths: 10, assists: 0 });
+  });
+
+  it('slot fora do round nao ganha linha so porque um evento o menciona', () => {
+    const k = kdaAt([kill(100, 9, 5)], slots, 200);
+    expect(k.has(9)).toBe(false);
+    expect(k.size).toBe(3);
+  });
+
+  it('sem kill nenhuma, sobra o acumulado e mais nada', () => {
+    const k = kdaAt([], [slot(0, [3, 2, 1])], 999);
+    expect(k.get(0)).toEqual({ kills: 3, deaths: 2, assists: 1 });
   });
 });

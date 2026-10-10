@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   cellText,
+  FALLBACK_THEME,
   fileSlug,
   layoutTable,
+  pngTable,
   referenceFooter,
   toCsv,
   toJson,
@@ -88,7 +90,7 @@ describe('layoutTable', () => {
     const l = layoutTable(table, measure);
     expect(l.colW[0]).toBe(80);
     expect(l.colW[1]).toBe(50);
-    expect(l.colX).toEqual([16, 110, 174]);
+    expect(l.colX).toEqual([16, 114, 182]);
   });
 
   it('a altura e cabecalho + linhas + respiro', () => {
@@ -151,5 +153,68 @@ describe('referenceFooter', () => {
 
   it('sem referencia, sem rodape', () => {
     expect(referenceFooter(undefined)).toEqual([]);
+  });
+});
+
+describe('pngTable — qual tabela vai para a imagem', () => {
+  const maquina: TableData = { columns: ['leitura', 'valor'], rows: [['rounds_CT', 7]] };
+  const tela: TableData = { columns: ['leitura', 'este time'], rows: [['rounds de CT', '7/12 (58%)']] };
+
+  it('com display, a imagem usa os rotulos da tela', () => {
+    expect(pngTable({ display: () => tela, table: () => maquina })).toEqual(tela);
+  });
+
+  it('sem display, a imagem cai na tabela de maquina, como sempre fez', () => {
+    expect(pngTable({ table: () => maquina })).toEqual(maquina);
+  });
+
+  it('sem nenhuma das duas, nao ha imagem', () => {
+    expect(pngTable({})).toBeNull();
+  });
+
+  it('display NAO vaza para o CSV', () => {
+    const csv = toCsv(maquina);
+    expect(csv).toContain('rounds_CT');
+    expect(csv).not.toContain('rounds de CT');
+  });
+});
+
+describe('layoutTable com os tokens do tema', () => {
+
+  const comRegistro = () => {
+    const vistas: string[] = [];
+    const measure: Measure = (text, font) => {
+      vistas.push(font);
+      return text.length * 10;
+    };
+    return { measure, vistas };
+  };
+
+  const tema = { ...FALLBACK_THEME, sans: 'Geist, sans-serif', mono: 'Geist Mono, monospace' };
+
+  it('mede com as fontes do tema, nao com system-ui fixo', () => {
+    const { measure, vistas } = comRegistro();
+    layoutTable({ columns: ['jogador', 'kills'], rows: [['ana', 20]] }, measure, { theme: tema });
+
+    expect(vistas.some((f) => f.includes('Geist, sans-serif'))).toBe(true);
+    expect(vistas.every((f) => !f.includes('system-ui'))).toBe(true);
+  });
+
+  it('a coluna numerica e medida em mono, a mesma fonte com que sera desenhada', () => {
+    const { measure, vistas } = comRegistro();
+    layoutTable({ columns: ['jogador', 'kills'], rows: [['ana', 20]] }, measure, { theme: tema });
+    expect(vistas.some((f) => f.includes('Geist Mono'))).toBe(true);
+  });
+
+  it('o tema usado na medida viaja junto, para o desenho usar o mesmo', () => {
+    const { measure } = comRegistro();
+    const l = layoutTable({ columns: ['a'], rows: [['x']] }, measure, { theme: tema });
+    expect(l.theme).toBe(tema);
+  });
+
+  it('sem tema, cai na reserva — o que valia antes desta versao', () => {
+    const { measure } = comRegistro();
+    const l = layoutTable({ columns: ['a'], rows: [['x']] }, measure);
+    expect(l.theme).toEqual(FALLBACK_THEME);
   });
 });

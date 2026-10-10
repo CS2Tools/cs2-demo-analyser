@@ -44,17 +44,25 @@ export function toJson(data: unknown, meta: ExportMeta): string {
 
 export async function composePng(
   layers: HTMLCanvasElement[],
-  opts: { title: string; subtitle?: string; footer?: string[]; alphas?: number[] },
+  opts: {
+    title: string;
+    subtitle?: string;
+    footer?: string[];
+    alphas?: number[];
+    theme?: ThemeTokens;
+  },
 ): Promise<Blob> {
   const base = layers[0];
   if (!base) throw new Error('nada para exportar');
+
+  const theme = opts.theme ?? domTheme();
   const w = base.width;
   const scale = Math.max(1, w / 900);
   const pad = Math.round(16 * scale);
   const titleSize = Math.round(18 * scale);
   const smallSize = Math.round(12 * scale);
   const header = pad * 2 + titleSize + (opts.subtitle ? smallSize + pad / 2 : 0);
-  const smallFont = `${smallSize}px system-ui, sans-serif`;
+  const smallFont = `${smallSize}px ${theme.sans}`;
 
   const footerLines = (opts.footer ?? []).flatMap((line) =>
     wrapText(line, w - pad * 2, smallFont, domMeasure()),
@@ -68,15 +76,15 @@ export async function composePng(
   const ctx = out.getContext('2d');
   if (!ctx) throw new Error('canvas indisponivel');
 
-  ctx.fillStyle = '#0a0a0a';
+  ctx.fillStyle = theme.background;
   ctx.fillRect(0, 0, out.width, out.height);
 
-  ctx.fillStyle = '#fafafa';
-  ctx.font = `600 ${titleSize}px system-ui, sans-serif`;
+  ctx.fillStyle = theme.foreground;
+  ctx.font = `600 ${titleSize}px ${theme.sans}`;
   ctx.textBaseline = 'top';
   ctx.fillText(opts.title, pad, pad);
   if (opts.subtitle) {
-    ctx.fillStyle = '#a1a1aa';
+    ctx.fillStyle = theme.mutedForeground;
     ctx.font = smallFont;
     ctx.fillText(opts.subtitle, pad, pad + titleSize + pad / 2);
   }
@@ -88,7 +96,7 @@ export async function composePng(
   });
   ctx.globalAlpha = 1;
 
-  ctx.fillStyle = '#a1a1aa';
+  ctx.fillStyle = theme.mutedForeground;
   ctx.font = smallFont;
   footerLines.forEach((line, i) => {
     ctx.fillText(line, pad, header + base.height + pad + i * lineH);
@@ -118,6 +126,58 @@ export function fileSlug(s: string): string {
       .toLowerCase()
       .slice(0, 80) || 'export'
   );
+}
+
+export interface ThemeTokens {
+  background: string;
+  card: string;
+  border: string;
+  foreground: string;
+  mutedForeground: string;
+  sans: string;
+  mono: string;
+}
+
+export const FALLBACK_THEME: ThemeTokens = {
+  background: '#0a0a0a',
+  card: '#131316',
+  border: '#27272a',
+  foreground: '#fafafa',
+  mutedForeground: '#a1a1aa',
+  sans: 'system-ui, sans-serif',
+  mono: 'ui-monospace, monospace',
+};
+
+function usableColor(ctx: CanvasRenderingContext2D, value: string, fallback: string): string {
+  const raw = value.trim();
+  if (raw === '') return fallback;
+  const sentinel = '#010203';
+  ctx.fillStyle = sentinel;
+  ctx.fillStyle = raw;
+  return ctx.fillStyle === sentinel ? fallback : raw;
+}
+
+export function domTheme(): ThemeTokens {
+  const probe = document.createElement('canvas').getContext('2d');
+  if (!probe) return FALLBACK_THEME;
+
+  const root = getComputedStyle(document.documentElement);
+  const body = getComputedStyle(document.body);
+  const token = (name: string, fallback: string) =>
+    usableColor(probe, root.getPropertyValue(name), fallback);
+
+  const sans = body.fontFamily.trim() || FALLBACK_THEME.sans;
+  const mono = root.getPropertyValue('--font-mono').trim() || FALLBACK_THEME.mono;
+
+  return {
+    background: token('--background', FALLBACK_THEME.background),
+    card: token('--card', FALLBACK_THEME.card),
+    border: token('--border', FALLBACK_THEME.border),
+    foreground: token('--foreground', FALLBACK_THEME.foreground),
+    mutedForeground: token('--muted-foreground', FALLBACK_THEME.mutedForeground),
+    sans,
+    mono,
+  };
 }
 
 export type Measure = (text: string, font: string) => number;
@@ -174,6 +234,8 @@ export interface TableLayout {
   cells: string[][];
 
   omitted: number;
+
+  theme: ThemeTokens;
 }
 
 const MAX_ROWS = 300;
@@ -181,16 +243,19 @@ const MAX_ROWS = 300;
 export function layoutTable(
   table: TableData,
   measure: Measure,
-  opts: { scale?: number; maxRows?: number } = {},
+  opts: { scale?: number; maxRows?: number; theme?: ThemeTokens } = {},
 ): TableLayout {
   const scale = opts.scale ?? 1;
+  const theme = opts.theme ?? FALLBACK_THEME;
   const fontSize = Math.round(13 * scale);
   const pad = Math.round(16 * scale);
-  const gap = Math.round(14 * scale);
-  const rowH = Math.round(fontSize * 1.9);
-  const headerH = Math.round(fontSize * 2.2);
-  const font = `${fontSize}px system-ui, sans-serif`;
-  const headFont = `600 ${fontSize}px system-ui, sans-serif`;
+  const gap = Math.round(18 * scale);
+  const rowH = Math.round(fontSize * 2.1);
+  const headerH = Math.round(fontSize * 2.4);
+  const font = `${fontSize}px ${theme.sans}`;
+  const headFont = `600 ${fontSize}px ${theme.sans}`;
+
+  const numFont = `${fontSize}px ${theme.mono}`;
   const maxColW = Math.round(300 * scale);
 
   const maxRows = opts.maxRows ?? MAX_ROWS;
@@ -203,27 +268,29 @@ export function layoutTable(
     return c === 0 ? 'left' : numeric ? 'right' : 'left';
   }) as ('left' | 'right')[];
 
+  const bodyFont = (c: number) => (align[c] === 'right' ? numFont : font);
+
   const colW = table.columns.map((h) => Math.min(maxColW, Math.ceil(measure(h, headFont))));
   const cells: string[][] = [];
 
-  const ellipsize = (text: string, limit: number): string => {
-    if (measure(text, font) <= limit) return text;
+  const ellipsize = (text: string, limit: number, f: string): string => {
+    if (measure(text, f) <= limit) return text;
     let s = text;
-    while (s.length > 1 && measure(`${s}…`, font) > limit) s = s.slice(0, -1);
+    while (s.length > 1 && measure(`${s}…`, f) > limit) s = s.slice(0, -1);
     return `${s}…`;
   };
 
   for (const row of kept) {
     const out = table.columns.map((_, c) => cellText(row[c]));
     out.forEach((text, c) => {
-      colW[c] = Math.min(maxColW, Math.max(colW[c]!, Math.ceil(measure(text, font))));
+      colW[c] = Math.min(maxColW, Math.max(colW[c]!, Math.ceil(measure(text, bodyFont(c)))));
     });
     cells.push(out);
   }
 
   for (const row of cells) {
     row.forEach((text, c) => {
-      if (colW[c] === maxColW) row[c] = ellipsize(text, maxColW);
+      if (colW[c] === maxColW) row[c] = ellipsize(text, maxColW, bodyFont(c));
     });
   }
 
@@ -238,6 +305,7 @@ export function layoutTable(
   return {
     width: Math.max(Math.round(420 * scale), x - gap + pad),
     height: headerH + cells.length * rowH + noteH + pad,
+    theme,
     colX,
     colW,
     align,
@@ -253,11 +321,12 @@ export function layoutTable(
 
 export function renderTableCanvas(
   table: TableData,
-  opts: { scale?: number; measure?: Measure } = {},
+  opts: { scale?: number; measure?: Measure; theme?: ThemeTokens } = {},
 ): HTMLCanvasElement {
   const measure = opts.measure ?? domMeasure();
   const scale = opts.scale ?? 2;
-  const layout = layoutTable(table, measure, { scale });
+  const theme = opts.theme ?? domTheme();
+  const layout = layoutTable(table, measure, { scale, theme });
 
   const canvas = document.createElement('canvas');
   canvas.width = layout.width;
@@ -266,37 +335,51 @@ export function renderTableCanvas(
   if (!ctx) throw new Error('canvas indisponivel');
 
   const { pad, rowH, headerH, fontSize } = layout;
-  ctx.fillStyle = '#0a0a0a';
+  const radius = Math.round(10 * scale);
+  const hair = Math.max(1, Math.round(scale));
+
+  ctx.fillStyle = theme.background;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.textBaseline = 'middle';
 
-  ctx.fillStyle = '#1c1c20';
-  ctx.fillRect(0, 0, canvas.width, headerH);
-  ctx.fillStyle = '#a1a1aa';
-  ctx.font = `600 ${fontSize}px system-ui, sans-serif`;
+  const cardPath = () => {
+    ctx.beginPath();
+    ctx.roundRect(hair / 2, hair / 2, canvas.width - hair, canvas.height - hair, radius);
+  };
+
+  ctx.fillStyle = theme.card;
+  cardPath();
+  ctx.fill();
+
+  ctx.fillStyle = theme.mutedForeground;
+  ctx.font = `600 ${fontSize}px ${theme.sans}`;
   layout.header.forEach((text, c) => {
     const right = layout.align[c] === 'right';
     ctx.textAlign = right ? 'right' : 'left';
     ctx.fillText(text, right ? layout.colX[c]! + layout.colW[c]! : layout.colX[c]!, headerH / 2);
   });
+  ctx.fillStyle = theme.border;
+  ctx.fillRect(0, headerH - hair, canvas.width, hair);
 
-  ctx.font = `${fontSize}px system-ui, sans-serif`;
   layout.cells.forEach((row, r) => {
     const y = headerH + r * rowH;
-    if (r % 2 === 1) {
-      ctx.fillStyle = '#131316';
-      ctx.fillRect(0, y, canvas.width, rowH);
+    if (r > 0) {
+      ctx.fillStyle = theme.border;
+      ctx.fillRect(pad, y, canvas.width - pad * 2, hair);
     }
-    ctx.fillStyle = '#fafafa';
     row.forEach((text, c) => {
       const right = layout.align[c] === 'right';
       ctx.textAlign = right ? 'right' : 'left';
+
+      ctx.font = right ? `${fontSize}px ${theme.mono}` : `${fontSize}px ${theme.sans}`;
+      ctx.fillStyle = c === 0 ? theme.mutedForeground : theme.foreground;
       ctx.fillText(text, right ? layout.colX[c]! + layout.colW[c]! : layout.colX[c]!, y + rowH / 2);
     });
   });
 
   if (layout.omitted > 0) {
-    ctx.fillStyle = '#a1a1aa';
+    ctx.fillStyle = theme.mutedForeground;
+    ctx.font = `${fontSize}px ${theme.sans}`;
     ctx.textAlign = 'left';
     ctx.fillText(
       `… e mais ${layout.omitted} linha(s) — o CSV traz todas`,
@@ -305,7 +388,19 @@ export function renderTableCanvas(
     );
   }
 
+  ctx.strokeStyle = theme.border;
+  ctx.lineWidth = hair;
+  cardPath();
+  ctx.stroke();
+
   return canvas;
+}
+
+export function pngTable(spec: {
+  display?: () => TableData;
+  table?: () => TableData;
+}): TableData | null {
+  return spec.display?.() ?? spec.table?.() ?? null;
 }
 
 export function referenceFooter(meta: Omit<ExportMeta, 'title'> | undefined): string[] {

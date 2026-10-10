@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -36,7 +36,8 @@ for (const [i, demoPath] of demos.entries()) {
       ? `ok em ${seconds}s — ${result.summary.liveRounds} rounds, ${result.summary.grenades} granadas` +
           (r ? `, ${r.players} jogadores ${r.teams}, slots ${r.slots}` +
                (r.handoffs > 0 ? `, ${r.handoffs} troca(s)` : '') +
-               (r.understaffed > 0 ? `, ${r.understaffed} round(s) desfalcado(s)` : '') : '') +
+               (r.understaffed > 0 ? `, ${r.understaffed} round(s) desfalcado(s)` : '') +
+               (r.absent > 0 ? `, ${r.absent} (round, slot) fora do round` : '') : '') +
           (result.dropped.length > 0 ? `; SEM: ${result.dropped.join(', ')}` : '')
       : `FALHOU em ${seconds}s: ${result.error}`,
   );
@@ -104,7 +105,7 @@ async function runOne(demoPath) {
         return;
       }
 
-      inspectRoster(spec.stagingPath, matchId)
+      inspectRoster(spec.stagingPath, matchId, bulkDir)
         .then((roster) => {
           limpar(dir);
           resolve({ ok: roster.ok, summary, dropped: [...dropped], roster, error: roster.error });
@@ -126,7 +127,7 @@ function limpar(dir) {
   }
 }
 
-async function inspectRoster(dbPath, matchId) {
+async function inspectRoster(dbPath, matchId, bulkDir) {
   const { DuckDb } = await import('../packages/db/src/index.ts');
   const { ensureRoster } = await import('../packages/api/src/roster-queries.ts');
   const db = await DuckDb.open(dbPath);
@@ -187,12 +188,58 @@ async function inspectRoster(dbPath, matchId) {
       );
     }
 
+    const semRound = await db.queryOne(
+      `SELECT (SELECT COUNT(*) FROM player_round_stats
+                WHERE match_id = ? AND side IS NULL) AS prs,
+              (SELECT COUNT(*) FROM economy
+                WHERE match_id = ? AND side IS NULL) AS econ`,
+      [matchId, matchId],
+    );
+    if (Number(semRound.prs) > 0 || Number(semRound.econ) > 0) {
+      problemas.push(
+        `linha de round sem ter jogado o round: ${semRound.prs} em player_round_stats, ` +
+          `${semRound.econ} em economy`,
+      );
+    }
+
     const slots = await db.queryOne(
       'SELECT replay_slot_count AS n FROM matches WHERE match_id = ?', [matchId],
     );
     const nSlots = slots.n === null ? null : Number(slots.n);
     if (nSlots !== null && nSlots < jogadores.length) {
       problemas.push(`replay com ${nSlots} slots para ${jogadores.length} jogadores`);
+    }
+
+    const parquet = join(bulkDir, matchId, 'ticks_replay.parquet').replaceAll('\\', '/');
+    let ausentes = 0;
+    if (existsSync(parquet)) {
+      const perdidos = await db.query(
+        `WITH presenca AS (
+           SELECT round_num, slot, any_value(steam_id) AS steam_id,
+                  COUNT(*) FILTER (WHERE side IN (2, 3)) AS validos
+             FROM read_parquet(?)
+            WHERE match_id = ?
+            GROUP BY round_num, slot
+         )
+         SELECT p.round_num, p.slot, p.steam_id,
+                (prs.steam_id IS NOT NULL) AS jogou
+           FROM presenca p
+           LEFT JOIN player_round_stats prs
+             ON prs.match_id = ? AND prs.round_num = p.round_num
+            AND prs.steam_id = p.steam_id AND prs.side IS NOT NULL
+          WHERE p.validos = 0`,
+        [parquet, matchId, matchId],
+      );
+      ausentes = perdidos.length;
+      const jogaram = perdidos.filter((r) => r.jogou);
+      if (jogaram.length > 0) {
+        problemas.push(
+          `sem lado no replay, mas jogou o round: ${jogaram
+            .slice(0, 5)
+            .map((r) => `r${r.round_num}/slot${r.slot}`)
+            .join(' ')}`,
+        );
+      }
     }
 
     const trocas = await db.query(
@@ -220,6 +267,8 @@ async function inspectRoster(dbPath, matchId) {
       slots: nSlots,
       handoffs: trocas.length,
       understaffed: Number(desfalcados.n),
+
+      absent: ausentes,
     };
   } finally {
     await db.close();

@@ -170,7 +170,7 @@ export async function getRoundReplay(
   const lifeState = new Array<number>(size).fill(1);
   const flash = new Array<number>(size).fill(0);
 
-  const sideBySlot = new Map<number, 'CT' | 'T' | null>();
+  const sideBySlot = new Map<number, 'CT' | 'T'>();
   const steamIdBySlot = new Map<number, string>();
   const hudRows: HudRow[] = [];
 
@@ -205,7 +205,9 @@ export async function getRoundReplay(
     if (!steamIdBySlot.has(slot)) steamIdBySlot.set(slot, r.steam_id);
     if (!sideBySlot.has(slot)) {
       const s = Number(r.side);
-      sideBySlot.set(slot, s === 3 ? 'CT' : s === 2 ? 'T' : null);
+
+      if (s === 3) sideBySlot.set(slot, 'CT');
+      else if (s === 2) sideBySlot.set(slot, 'T');
     }
   }
 
@@ -219,12 +221,29 @@ export async function getRoundReplay(
   );
   const byId = new Map(players.map((p) => [p.steam_id, p]));
 
+  const before = await db.query<{
+    steam_id: string; kills: number; deaths: number; assists: number;
+  }>(
+    `SELECT prs.steam_id,
+            sum(prs.kills)   AS kills,
+            sum(prs.deaths)  AS deaths,
+            sum(prs.assists) AS assists
+       FROM player_round_stats prs
+       JOIN rounds r USING (match_id, round_num)
+      WHERE prs.match_id = ? AND r.phase = 'live' AND prs.round_num < ?
+      GROUP BY prs.steam_id`,
+    [matchId, roundNum],
+  );
+  const beforeById = new Map(before.map((b) => [b.steam_id, b]));
+
   const teamNames = await db.queryOne<{ team_a_name: string | null }>(
     'SELECT team_a_name FROM matches WHERE match_id = ?',
     [matchId],
   );
 
   const slots = [...steamIdBySlot.entries()]
+
+    .filter(([slot]) => sideBySlot.has(slot))
     .sort(([a], [b]) => a - b)
     .map(([slot, steamId]) => {
       const p = byId.get(steamId);
@@ -239,6 +258,9 @@ export async function getRoundReplay(
         isUser: Boolean(p?.is_user),
         isPoi: Boolean(p?.is_poi),
         teamColor: p?.team_color ?? null,
+        killsBefore: Number(beforeById.get(steamId)?.kills ?? 0),
+        deathsBefore: Number(beforeById.get(steamId)?.deaths ?? 0),
+        assistsBefore: Number(beforeById.get(steamId)?.assists ?? 0),
       };
     });
   void teamNames;

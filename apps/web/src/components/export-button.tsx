@@ -12,6 +12,7 @@ import { Spinner } from '@/components/ui/spinner';
 import {
   composePng,
   fileSlug,
+  pngTable,
   referenceFooter,
   renderTableCanvas,
   saveBlob,
@@ -26,7 +27,10 @@ export interface ExportSpec {
 
   title: string;
   meta?: Omit<ExportMeta, 'title'>;
+
   table?: () => TableData;
+
+  display?: () => TableData;
 
   json?: () => unknown;
   png?: () => {
@@ -39,7 +43,7 @@ export interface ExportSpec {
 
 function pngSource(spec: ExportSpec): NonNullable<ReturnType<NonNullable<ExportSpec['png']>>> | null {
   if (spec.png) return spec.png();
-  const table = spec.table?.();
+  const table = pngTable(spec);
   if (!table) return null;
   return {
     layers: [renderTableCanvas(table)],
@@ -74,7 +78,7 @@ export function ExportButton({ spec, className }: { spec: ExportSpec; className?
   };
 
   const hasJson = Boolean(spec.json || spec.table);
-  const hasPng = Boolean(spec.png || spec.table);
+  const hasPng = Boolean(spec.png || spec.display || spec.table);
 
   return (
     <DropdownMenu>

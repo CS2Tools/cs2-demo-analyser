@@ -30,6 +30,15 @@ describe('numbersBySlot', () => {
     expect(n.get(3)).toBe(1);
     expect(n.get(7)).toBe(1);
   });
+
+  it('com um slot ausente, a numeracao fecha em 1..n sem buraco', () => {
+    const n = numbersBySlot(slots.filter((s) => s.slot !== 2));
+    expect([...n.entries()].slice(0, 4)).toEqual([[0, 1], [1, 2], [3, 3], [4, 4]]);
+    expect(n.has(2)).toBe(false);
+
+    expect(n.get(5)).toBe(1);
+    expect(n.get(9)).toBe(5);
+  });
 });
 
 describe('planPlayerLabel', () => {

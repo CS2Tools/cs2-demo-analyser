@@ -65,7 +65,8 @@ export async function runPassE(options: {
   interface Entry {
     roundNum: number;
     steamId: string;
-    side: Side | null;
+
+    side: Side;
     startBalance: number;
     spent: number;
     equipValue: number;
@@ -84,6 +85,9 @@ export async function runPassE(options: {
     const steamId = String(row['steamid'] ?? '');
     if (!round || !steamId || steamId === '0') continue;
 
+    const side = sideFromTeamNum(Number(row['team_num'] ?? 0));
+    if (!side) continue;
+
     const inventory = Array.isArray(row['inventory'])
       ? (row['inventory'] as unknown[]).map(String)
       : [];
@@ -100,7 +104,7 @@ export async function runPassE(options: {
     entries.push({
       roundNum: round.roundNum,
       steamId,
-      side: sideFromTeamNum(Number(row['team_num'] ?? 0)),
+      side,
       startBalance: Number(row['start_balance'] ?? 0),
       spent: Number(row['cash_spent_this_round'] ?? 0),
       equipValue: equipmentValue({
@@ -121,15 +125,14 @@ export async function runPassE(options: {
 
   const teamCount = new Map<string, number>();
   for (const e of entries) {
-    if (!e.side) continue;
     const key = `${e.roundNum}|${e.side}`;
     teamValue.set(key, (teamValue.get(key) ?? 0) + e.equipValue);
     teamCount.set(key, (teamCount.get(key) ?? 0) + 1);
   }
 
   const out: SqlValue[][] = entries.map((e) => {
-    const teamTotal = e.side ? (teamValue.get(`${e.roundNum}|${e.side}`) ?? 0) : 0;
-    const teamN = e.side ? (teamCount.get(`${e.roundNum}|${e.side}`) ?? 5) : 5;
+    const teamTotal = teamValue.get(`${e.roundNum}|${e.side}`) ?? 0;
+    const teamN = teamCount.get(`${e.roundNum}|${e.side}`) ?? 5;
     return [
       matchId,
       e.roundNum,

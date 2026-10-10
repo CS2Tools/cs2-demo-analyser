@@ -1,4 +1,4 @@
-import type { ReplayHud } from '@cs2/contract';
+import type { ReplayEvent, ReplayHud, ReplaySlot } from '@cs2/contract';
 
 type Step = [number, number, number];
 
@@ -139,4 +139,41 @@ export function formatClock(seconds: number | null): string {
   if (seconds === null) return '—';
   const s = Math.ceil(seconds);
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+export interface Kda {
+  kills: number;
+  deaths: number;
+  assists: number;
+}
+
+export function kdaAt(
+  events: readonly ReplayEvent[],
+  slots: readonly Pick<ReplaySlot, 'slot' | 'killsBefore' | 'deathsBefore' | 'assistsBefore'>[],
+  tick: number,
+): Map<number, Kda> {
+  const out = new Map<number, Kda>();
+  for (const s of slots) {
+    out.set(s.slot, {
+      kills: s.killsBefore,
+      deaths: s.deathsBefore,
+      assists: s.assistsBefore,
+    });
+  }
+
+  const bump = (slot: number | null, key: keyof Kda) => {
+    if (slot === null) return;
+    const cur = out.get(slot);
+
+    if (cur) cur[key] += 1;
+  };
+
+  for (const e of events) {
+    if (e.kind !== 'kill' || e.tick > tick) continue;
+    bump(e.actorSlot, 'kills');
+    bump(e.targetSlot, 'deaths');
+    bump(e.assisterSlot, 'assists');
+  }
+
+  return out;
 }

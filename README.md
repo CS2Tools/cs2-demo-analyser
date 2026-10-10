@@ -1,7 +1,5 @@
 # CS2 Demo Analyser
 
-## [Instalador](https://github.com/CS2Tools/cs2-demo-analyser/releases/tag/v1.1.0)
-
 Analisador de demos de Counter-Strike 2 que roda inteiro na sua máquina.
 Você aponta para um arquivo `.dem`, o programa lê, guarda num banco local e
 mostra o que aconteceu — round por round, jogador por jogador, com o número
@@ -34,7 +32,8 @@ console é você, num servidor privado. Ver
 - **Biblioteca** — as partidas importadas, com mapa, placar, fonte (Gamers
   Club, FACEIT, matchmaking, HLTV) e data.
 - **Partida** — placar, rounds como sequência, economia, bomba e sites, chat,
-  e o replay 2D com radar, killfeed e painel de jogadores.
+  e o replay 2D com radar, killfeed e painel de jogadores (com o K/D/A de cada
+  um no instante que está na tela, como o placar do jogo).
 - **Análise** — quinze cards: precisão, mira, duelos de entrada, clutches,
   multikills, KAST, cadeia da troca, economia, economia a fundo, bomba,
   utilitário, flashes, vantagem numérica, mapa de calor e rating.
@@ -54,8 +53,10 @@ console é você, num servidor privado. Ver
   afirma o motivo** da saída — a demo não registra isso.
 
 Todo card que mostra uma tabela exporta nos três formatos — PNG, CSV e JSON
-— com rodapé de procedência. A imagem sai da mesma tabela do CSV, desenhada
-num canvas: não há rasterizador de DOM no projeto.
+— com rodapé de procedência. A imagem reproduz o card da tela, com os rótulos
+traduzidos e as cores do tema, desenhada num canvas: não há rasterizador de DOM
+no projeto. O CSV e o JSON continuam sendo o formato de **máquina**, com nomes
+estáveis e sem acento — eles não mudam de idioma.
 
 ## O que ele não faz
 
